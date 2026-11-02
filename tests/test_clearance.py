@@ -5,11 +5,12 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from shapely.geometry import Point, Polygon, box
 from shapely.ops import unary_union
 
-from pcb_clearance.cli import discover, main
+from pcb_clearance.cli import discover, main, run_check
 from pcb_clearance.detector import find_gaps
 from pcb_clearance.geometry import macro_shape
 from pcb_clearance.parser import GerberError, GerberParser
@@ -142,6 +143,27 @@ class DetectorTests(unittest.TestCase):
 
 
 class CLITests(unittest.TestCase):
+    def test_shared_engine_progress_without_console(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "board.GTL"
+            source.write_text(gerber("X0Y0D03*X10800Y0D03*"))
+            events = []
+            with patch("sys.stderr", None):
+                report, outdir = run_check([str(source)], root / "out", jobs=1, on_progress=events.append)
+            self.assertEqual(report["status"], "violations")
+            self.assertEqual([e["stage"] for e in events], ["started", "layer_done", "report"])
+            self.assertEqual(events[1]["completed"], 1)
+            self.assertTrue((outdir / "index.html").is_file())
+
+    def test_shared_engine_rejects_invalid_threshold_before_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for threshold in (0, -1, math.nan, math.inf):
+                with self.subTest(threshold=threshold), self.assertRaises(GerberError):
+                    run_check(["missing.GTL"], root / "out", threshold=threshold)
+            self.assertFalse((root / "out").exists())
+
     def test_report_coordinates_images_and_exit_codes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

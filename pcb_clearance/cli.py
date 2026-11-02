@@ -73,13 +73,19 @@ def discover(inputs):
     return sorted(selected.values()), skipped
 
 
+def log(message):
+    """コンソールのない exe でも実行できるようにする。"""
+    if sys.stderr is not None:
+        print(message, file=sys.stderr, flush=True)
+
+
 def worker(payload):
     path, options, outdir = payload
     started = time.monotonic()
     key = re.sub(r"[^A-Za-z0-9._-]", "_", path.name) + "-" + hashlib.sha256(str(path).encode()).hexdigest()[:8]
     result = {"name": path.name, "path": str(path), "key": key}
     try:
-        print(f"[読込] {path.name}", file=sys.stderr, flush=True)
+        log(f"[読込] {path.name}")
         text = path.read_text(encoding="utf-8-sig")
         polarity = options["polarity"]
         warnings = []
@@ -89,18 +95,18 @@ def worker(payload):
             warnings.append("極性属性のない Altium GP 層をネガとして扱いました。必要なら --polarity positive で指定してください。")
         layer = GerberParser(text, polarity=polarity,
                              padding=max(1.0, options["threshold"] * 10)).parse()
-        print(f"[測定] {path.name}", file=sys.stderr, flush=True)
+        log(f"[測定] {path.name}")
         records, detection = find_gaps(layer.copper, options["threshold"], options["tolerance"],
                                       options["arc_filter"], layer.statistics["negative"], options["cluster_radius"])
         for number, rec in enumerate(records, 1):
             rec["id"] = number
-        print(f"[画像] {path.name}: {len(records)} 箇所", file=sys.stderr, flush=True)
+        log(f"[画像] {path.name}: {len(records)} 箇所")
         overview = write_layer_images(layer.copper, records, outdir, key, options["window_mm"], path.name)
         result.update(metadata=layer.metadata, statistics=layer.statistics, warnings=layer.warnings + warnings,
                       detection=detection, violations=records, overview=overview)
     except (Exception, SystemExit) as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
-        print(f"[エラー] {path.name}: {result['error']}", file=sys.stderr, flush=True)
+        log(f"[エラー] {path.name}: {result['error']}")
     result["elapsed_seconds"] = round(time.monotonic() - started, 3)
     return result
 
@@ -110,6 +116,63 @@ def positive(value):
     if not math.isfinite(number) or number <= 0:
         raise argparse.ArgumentTypeError("有限の正数を指定してください")
     return number
+
+
+def run_check(inputs, outdir=None, *, threshold=0.1, tolerance=1e-7, polarity="auto",
+              arc_filter=True, cluster_radius=0.3, window_mm=2.0, jobs=0, on_progress=None):
+    """CLI と GUI が共有する検査処理。進捗通知は呼び出し元のスレッドで行う。"""
+    for name, number in (("クリアランス", threshold), ("許容差", tolerance),
+                         ("集約半径", cluster_radius), ("画像範囲", window_mm)):
+        if not math.isfinite(number) or number <= 0:
+            raise GerberError(f"{name}は有限の正数を指定してください")
+    if jobs < 0 or polarity not in ("auto", "positive", "negative"):
+        raise GerberError("並列数または極性の指定が不正です")
+    files, skipped = discover(inputs)
+    outdir = (Path(outdir) if outdir is not None else
+              Path("output") / datetime.now().strftime("clearance-%Y%m%d-%H%M%S-%f")).resolve()
+    if outdir.exists() and (not outdir.is_dir() or any(outdir.iterdir())):
+        raise GerberError(f"出力先には空のフォルダーを指定してください: {outdir}")
+    outdir.mkdir(parents=True, exist_ok=True)
+    options = dict(threshold=threshold, tolerance=tolerance, polarity=polarity,
+                   arc_filter=arc_filter, cluster_radius=cluster_radius, window_mm=window_mm)
+    jobs = min(len(files), jobs or min(4, os.cpu_count() or 1))
+
+    def progress(stage, completed=0, layer=None):
+        if on_progress:
+            on_progress(dict(stage=stage, total=len(files), completed=completed,
+                             layer=layer, outdir=str(outdir)))
+
+    progress("started")
+    if jobs == 1:
+        results = []
+        for path in files:
+            results.append(worker((path, options, outdir)))
+            progress("layer_done", len(results), results[-1])
+    else:
+        indexed = {}
+        with ProcessPoolExecutor(max_workers=jobs) as pool:
+            futures = {pool.submit(worker, (path, options, outdir)): path for path in
+                       sorted(files, key=lambda p: -p.stat().st_size)}
+            for future in as_completed(futures):
+                path = futures[future]
+                try:
+                    indexed[path] = future.result()
+                except Exception as exc:
+                    indexed[path] = {"name": path.name, "path": str(path), "error": str(exc)}
+                progress("layer_done", len(indexed), indexed[path])
+        results = [indexed[path] for path in files]
+    progress("report", len(files))
+    report = dict(schema_version=1, application_version=__version__,
+                  created_at=datetime.now().astimezone().isoformat(),
+                  threshold_mm=threshold, comparison="gap_mm <= threshold_mm + tolerance_mm",
+                  tolerance_mm=tolerance, coordinate_system="Gerber, mm, X right, Y up",
+                  cluster_radius_mm=cluster_radius, arc_filter=arc_filter,
+                  violation_count=sum(len(r.get("violations", [])) for r in results),
+                  error_count=sum("error" in r for r in results),
+                  limitations=LIMITATIONS, skipped_inputs=skipped, layers=results)
+    report["status"] = "error" if report["error_count"] else ("violations" if report["violation_count"] else "clear")
+    save_reports(report, outdir)
+    return report, outdir
 
 
 def main(argv=None):
@@ -128,39 +191,11 @@ def main(argv=None):
     if args.jobs < 0:
         parser.error("--jobs は0以上が必要")
     try:
-        files, skipped = discover(args.inputs)
-        outdir = (args.outdir or Path("output") / datetime.now().strftime("clearance-%Y%m%d-%H%M%S-%f")).resolve()
-        if outdir.exists() and (not outdir.is_dir() or any(outdir.iterdir())):
-            raise GerberError(f"出力先には空のフォルダーを指定してください: {outdir}")
-        outdir.mkdir(parents=True, exist_ok=True)
-        options = dict(threshold=args.min_clearance, tolerance=args.tolerance, polarity=args.polarity,
-                       arc_filter=not args.no_arc_filter, cluster_radius=args.cluster_radius, window_mm=args.window_mm)
-        jobs = min(len(files), args.jobs or min(4, os.cpu_count() or 1))
-        if jobs == 1:
-            results = [worker((path, options, outdir)) for path in files]
-        else:
-            indexed = {}
-            with ProcessPoolExecutor(max_workers=jobs) as pool:
-                futures = {pool.submit(worker, (path, options, outdir)): path for path in
-                           sorted(files, key=lambda p: -p.stat().st_size)}
-                for future in as_completed(futures):
-                    path = futures[future]
-                    try:
-                        indexed[path] = future.result()
-                    except Exception as exc:
-                        indexed[path] = {"name": path.name, "path": str(path), "error": str(exc)}
-            results = [indexed[path] for path in files]
-        report = dict(schema_version=1, application_version=__version__,
-                      created_at=datetime.now().astimezone().isoformat(),
-                      threshold_mm=args.min_clearance, comparison="gap_mm <= threshold_mm + tolerance_mm",
-                      tolerance_mm=args.tolerance, coordinate_system="Gerber, mm, X right, Y up",
-                      cluster_radius_mm=args.cluster_radius, arc_filter=not args.no_arc_filter,
-                      violation_count=sum(len(r.get("violations", [])) for r in results),
-                      error_count=sum("error" in r for r in results),
-                      limitations=LIMITATIONS, skipped_inputs=skipped, layers=results)
-        report["status"] = "error" if report["error_count"] else ("violations" if report["violation_count"] else "clear")
-        save_reports(report, outdir)
-        print(f"検出 {report['violation_count']} 箇所 / エラー {report['error_count']} 層 / 検査 {len(files)} 層")
+        report, outdir = run_check(args.inputs, args.outdir, threshold=args.min_clearance,
+                                  tolerance=args.tolerance, polarity=args.polarity,
+                                  arc_filter=not args.no_arc_filter, cluster_radius=args.cluster_radius,
+                                  window_mm=args.window_mm, jobs=args.jobs)
+        print(f"検出 {report['violation_count']} 箇所 / エラー {report['error_count']} 層 / 検査 {len(report['layers'])} 層")
         print(f"結果: {outdir / 'index.html'}")
         print(f"JSON: {outdir / 'report.json'}")
         return 2 if report["error_count"] else (1 if report["violation_count"] else 0)
