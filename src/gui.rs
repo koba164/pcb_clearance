@@ -153,6 +153,18 @@ impl ClearanceApp {
             Err(e) => self.status = format!("検査対象を追加できません: {e:#}"),
         }
     }
+    fn clear_all(&mut self) {
+        if self.running {
+            return;
+        }
+        self.input = InputSelection::default();
+        self.details.clear();
+        self.result = None;
+        self.rx = None;
+        self.started = None;
+        self.progress = ProgressState::default();
+        self.status = "検査するデータを選択してください。".into();
+    }
     fn start(&mut self, ctx: &egui::Context) {
         if self.running {
             return;
@@ -372,6 +384,13 @@ impl ClearanceApp {
                 {
                     self.open();
                 }
+                if ui
+                    .add_enabled(!self.running, egui::Button::new("すべてクリア"))
+                    .clicked()
+                {
+                    self.clear_all();
+                    ctx.request_repaint();
+                }
             });
             ui.add_space(12.);
             ui.horizontal(|ui| {
@@ -492,7 +511,7 @@ mod tests {
         draw(&mut app, &ctx);
     }
     #[test]
-    fn background_check_finishes_and_enables_report() {
+    fn background_check_finishes_and_clear_resets_view() {
         let tmp = tempfile::tempdir().unwrap();
         let source = tmp.path().join("基板.GTL");
         std::fs::write(
@@ -517,9 +536,32 @@ mod tests {
         assert_eq!(app.progress.fraction(), 1.);
         assert!(app.status.contains("違反 1 箇所"));
         draw(&mut app, &ctx);
+        let saved_report = app.result.clone().unwrap();
+        let settings = (app.threshold.clone(), app.output.clone(), app.auto_open);
+        let (tx, rx) = mpsc::channel();
+        tx.send(Event::Failed("前回の通知".into())).unwrap();
+        app.rx = Some(rx);
+        app.input.selected.insert(0);
+        app.clear_all();
+        app.poll();
+        assert!(app.input.files.is_empty());
+        assert!(app.input.selected.is_empty());
+        assert!(app.details.is_empty());
+        assert!(app.result.is_none());
+        assert!(app.rx.is_none());
+        assert!(app.started.is_none());
+        assert_eq!(app.progress.total, 0);
+        assert_eq!(app.progress.completed, 0);
+        assert!(app.status.contains("選択してください"));
+        assert_eq!(
+            (app.threshold.clone(), app.output.clone(), app.auto_open),
+            settings
+        );
+        assert!(saved_report.is_file());
+        draw(&mut app, &ctx);
     }
     #[test]
-    fn failure_stops_activity_and_retains_completed_layers() {
+    fn clear_is_blocked_during_check_and_failure_preserves_progress() {
         let ctx = egui::Context::default();
         let mut app = ClearanceApp::new(&ctx);
         app.running = true;
@@ -528,6 +570,10 @@ mod tests {
         app.progress.completed = 1;
         let (tx, rx) = mpsc::channel();
         app.rx = Some(rx);
+        app.clear_all();
+        assert!(app.running);
+        assert!(app.rx.is_some());
+        assert_eq!(app.progress.completed, 1);
         tx.send(Event::Failed("保存できません".into())).unwrap();
         app.poll();
         assert!(!app.running);
