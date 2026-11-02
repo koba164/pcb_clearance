@@ -1,0 +1,198 @@
+name: Windows版リリース
+run-name: Windows版 ${{ inputs.tag || github.ref_name }}${{ github.event_name == 'workflow_dispatch' && !inputs.publish && '（公開なし）' || '' }}
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 検査・ビルドする既存タグ（例 v0.2.3）
+        required: true
+        type: string
+      publish:
+        description: 成功後にリリースを公開する（オフならビルド確認のみ）
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Windowsで検証・ビルド
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      CARGO_TERM_COLOR: always
+    defaults:
+      run:
+        shell: pwsh
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      commit: ${{ steps.metadata.outputs.commit }}
+    steps:
+      - name: タグ形式を確認
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+              throw 'v0.2.3 のような安定版のバージョンタグを指定してください。'
+          }
+
+      - name: 対象タグを取得
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 公式 checkout v7
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Rustの検証環境を準備
+        run: |
+          rustup toolchain install 1.99.1-x86_64-pc-windows-msvc --profile minimal --component rustfmt --component clippy
+          if ($LASTEXITCODE -ne 0) { throw 'Rustの導入に失敗しました。' }
+          rustup default 1.99.1-x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { throw 'Rustの選択に失敗しました。' }
+
+      - name: タグとアプリのバージョンを照合
+        id: metadata
+        run: |
+          $metadata = cargo metadata --locked --no-deps --format-version 1 | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cargo情報の取得に失敗しました。' }
+          $package = @($metadata.packages | Where-Object { $_.name -eq 'pcb-clearance' })
+          if ($package.Count -ne 1 -or $env:RELEASE_TAG -ne "v$($package[0].version)") {
+              throw 'タグとCargo.tomlのバージョンが一致しません。'
+          }
+          $commit = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'コミットの確認に失敗しました。' }
+          "tag=$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
+          "version=$($package[0].version)" >> $env:GITHUB_OUTPUT
+          "commit=$commit" >> $env:GITHUB_OUTPUT
+
+      - name: 整形チェック
+        run: cargo fmt --all -- --check
+
+      - name: テスト
+        run: cargo test --locked
+
+      - name: 静的解析
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: GUI・CLIのexeを作成
+        run: ./build_exe.ps1
+
+      - name: バージョン・マニュアル・チェックサムを確認
+        env:
+          APP_VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          $actual = & ./dist/pcb-clearance-cli.exe --version
+          if ($LASTEXITCODE -ne 0 -or $actual -ne "pcb-clearance $env:APP_VERSION") {
+              throw '生成したexeのバージョンが一致しません。'
+          }
+          $manual = @(Get-ChildItem -LiteralPath docs -Filter '*.pdf' -File)
+          if ($manual.Count -ne 1) { throw 'マニュアルを一意に選択できません。' }
+          Copy-Item -LiteralPath $manual[0].FullName -Destination dist/PCB-Clearance_Manual.pdf
+          $names = @('PCB-Clearance.exe', 'pcb-clearance-cli.exe', 'PCB-Clearance_Manual.pdf')
+          $lines = foreach ($name in $names) {
+              $path = Join-Path dist $name
+              if ((Get-Item -LiteralPath $path).Length -eq 0) { throw "成果物が空です: $name" }
+              $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+              "$hash  $name"
+          }
+          $manifest = ($lines -join [char]10) + [char]10
+          [IO.File]::WriteAllText((Join-Path $PWD 'dist/SHA256SUMS.txt'), $manifest, [Text.UTF8Encoding]::new($false))
+
+      - name: 検証済み成果物を保存
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 公式 upload-artifact v7
+        with:
+          name: windows-${{ steps.metadata.outputs.tag }}
+          path: |
+            dist/PCB-Clearance.exe
+            dist/pcb-clearance-cli.exe
+            dist/PCB-Clearance_Manual.pdf
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: GitHub Releasesへ公開
+    needs: build
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+    steps:
+      - name: 検証済み成果物を取得
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # 公式 download-artifact v8
+        with:
+          name: windows-${{ needs.build.outputs.tag }}
+          path: dist
+
+      - name: タグ・添付ファイルを検証して公開
+        shell: bash
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          sha256sum --check SHA256SUMS.txt
+
+          # 注釈付きタグも解決し、ビルド後のタグの変更を検出する。
+          reference="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG")"
+          type="$(jq -r '.object.type' <<< "$reference")"
+          commit="$(jq -r '.object.sha' <<< "$reference")"
+          while [[ "$type" == tag ]]; do
+            reference="$(gh api "repos/$GH_REPO/git/tags/$commit")"
+            type="$(jq -r '.object.type' <<< "$reference")"
+            commit="$(jq -r '.object.sha' <<< "$reference")"
+          done
+          [[ "$type" == commit && "$commit" == "$RELEASE_COMMIT" ]] || {
+            echo '::error::タグとビルドしたコミットが一致しません。'
+            exit 1
+          }
+
+          # 公開済みの版は不変とし、失敗したドラフトだけ再実行を許可する。
+          if gh release view "$RELEASE_TAG" --json isDraft > "$RUNNER_TEMP/release-state.json"; then
+            [[ "$(jq -r '.isDraft' "$RUNNER_TEMP/release-state.json")" == true ]] || {
+              echo '::error::このタグのリリースは公開済みです。新しいバージョンタグを使用してください。'
+              exit 1
+            }
+          else
+            printf '%s\n' \
+              'Windows 64bit向けのRust版です。PythonやCADソフトの導入は不要です。' \
+              '' \
+              '- `PCB-Clearance.exe`: GUI版' \
+              '- `pcb-clearance-cli.exe`: コマンドライン版' \
+              '- `PCB-Clearance_Manual.pdf`: 簡易マニュアル' \
+              '- `SHA256SUMS.txt`: 添付ファイルのSHA256' \
+              '' \
+              'テスト・整形チェック・静的解析に合格したexeを添付しています。' \
+              "ソースコミット: $RELEASE_COMMIT" > "$RUNNER_TEMP/release-notes.md"
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "PCB Clearance $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+
+          gh release upload "$RELEASE_TAG" --clobber \
+            PCB-Clearance.exe pcb-clearance-cli.exe PCB-Clearance_Manual.pdf SHA256SUMS.txt
+
+          # アップロード後もサーバー側のハッシュと照合し、揃ってから公開する。
+          gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/release-assets.json"
+          for file in PCB-Clearance.exe pcb-clearance-cli.exe PCB-Clearance_Manual.pdf SHA256SUMS.txt; do
+            expected="sha256:$(sha256sum "$file" | cut -d ' ' -f 1)"
+            actual="$(jq -r --arg name "$file" '.assets[] | select(.name == $name) | .digest' "$RUNNER_TEMP/release-assets.json")"
+            [[ "$actual" == "$expected" ]] || {
+              echo "::error::アップロードしたファイルのSHA256が一致しません: $file"
+              exit 1
+            }
+          done
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+          gh release view "$RELEASE_TAG" --json url --jq '.url' >> "$GITHUB_STEP_SUMMARY"

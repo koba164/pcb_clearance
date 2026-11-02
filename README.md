@@ -80,3 +80,24 @@ cargo clippy --locked --all-targets -- -D warnings
 ```
 
 層ごとの検査は Rust のスレッドで並列実行します（既定は最大4層）。GUI はバックグラウンド検査の完了通知を受け取り、完了した層数だけ進捗バーを進めます。
+
+## 自動リリース
+
+`v0.2.3` のような安定版タグを `public` にpushすると、GitHub Actions がWindows上でテスト・整形チェック・静的解析を実行し、GUI・CLIのexeをビルドしてGitHub Releasesへ公開します。
+マニュアルと `SHA256SUMS.txt` も添付し、READMEの「Windows版exeをダウンロード」は新しい最新版へ切り替わります。
+
+1. `Cargo.toml` のバージョンを更新し、`cargo check` で `Cargo.lock` も更新します。
+2. 変更をコミットします。
+3. バージョンと一致するタグを作り、ブランチとタグをpushします。
+
+```powershell
+git tag v0.2.3
+git push public main
+git push public v0.2.3
+```
+
+通常のブランチpushだけでは公開しません。タグとアプリのバージョンが一致しない場合や検証に失敗した場合は公開を停止します。
+公開済みのリリースは上書きしません。次の公開には新しいバージョンタグを使用してください。
+
+[Actionsの「Windows版リリース」](https://github.com/koba164/pcb_clearance/actions/workflows/release.yml) から手動実行もできます。
+既存タグを指定し、「成功後にリリースを公開する」をオフにすると、公開せずにビルドを確認できます。公開をオンにした実行やタグpushで添付の途中に失敗した場合は、再実行でドラフトへのアップロードをやり直せます。
