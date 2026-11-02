@@ -1,0 +1,303 @@
+[
+  {
+    "name": "circular_pads_0",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,1*%\nD10*\nX0Y0D03*X1080000Y0D03*\nM02*",
+    "area_mm2": 1.5706386254663864,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.08000000000000007
+  },
+  {
+    "name": "circular_pads_15",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,1*%\nD10*\nX0Y0D03*X1043200Y279525D03*\nM02*",
+    "area_mm2": 1.5706386254663867,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.08006647625579694
+  },
+  {
+    "name": "circular_pads_30",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,1*%\nD10*\nX0Y0D03*X935307Y540000D03*\nM02*",
+    "area_mm2": 1.5706386254663864,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.08006588551325582
+  },
+  {
+    "name": "circular_pads_45",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,1*%\nD10*\nX0Y0D03*X763675Y763675D03*\nM02*",
+    "area_mm2": 1.570638625466386,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.07999954224527336
+  },
+  {
+    "name": "circular_pads_75",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,1*%\nD10*\nX0Y0D03*X279525Y1043200D03*\nM02*",
+    "area_mm2": 1.570638625466386,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.08006647625579694
+  },
+  {
+    "name": "circular_pads_90",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,1*%\nD10*\nX0Y0D03*X0Y1080000D03*\nM02*",
+    "area_mm2": 1.5706386254663864,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.08000000000000007
+  },
+  {
+    "name": "round_strokes",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,0.3*%\nD10*\nX0Y0D02*X3000000Y2000000D01*X0Y450000D02*X3000000Y2450000D01*\nM02*",
+    "area_mm2": 2.3046882415703682,
+    "negative": false,
+    "violation_count": 3,
+    "minimum_gap_mm": 0.07442263245202947
+  },
+  {
+    "name": "zero_length_draw",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,1*%\nD10*\nX0Y0D02*X0Y0D01*X1080000Y0D03*\nM02*",
+    "area_mm2": 1.5706386254663864,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.08000000000000007
+  },
+  {
+    "name": "obround",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10O,2X1*%\nD10*\nX0Y0D03*X2080000Y0D03*\nM02*",
+    "area_mm2": 3.5706386254663873,
+    "negative": false,
+    "violation_count": 1,
+    "minimum_gap_mm": 0.08000000000000007
+  },
+  {
+    "name": "polygon_flash",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10P,1X6X30*%\nD10*\nX0Y0D03*X946025Y0D03*\nM02*",
+    "area_mm2": 1.299038105676658,
+    "negative": false,
+    "violation_count": 2,
+    "minimum_gap_mm": 0.07999959621556135
+  },
+  {
+    "name": "full_arc",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,0.2*%\nD10*\nG75*G03*X1000000Y0D02*X1000000Y0I-1000000J0D01*\nM02*",
+    "area_mm2": 1.256600789275355,
+    "negative": false,
+    "violation_count": 0,
+    "minimum_gap_mm": null
+  },
+  {
+    "name": "cw_quarter_arc",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%ADD10C,0.2*%\nD10*\nG75*G02*X1000000Y0D02*X0Y-1000000I-1000000J0D01*\nM02*",
+    "area_mm2": 0.3455629883093484,
+    "negative": false,
+    "violation_count": 0,
+    "minimum_gap_mm": null
+  },
+  {
+    "name": "macro_vector",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%AMV*20,1,0.3,-1,0,1,0,30*%%ADD10V*%\nD10*\nX0Y0D03*\nM02*",
+    "area_mm2": 0.6,
+    "negative": false,
+    "violation_count": 0,
+    "minimum_gap_mm": null
+  },
+  {
+    "name": "macro_lower_left",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%AMV*22,1,2,1,-1,-0.5,45*%%ADD10V*%\nD10*\nX0Y0D03*\nM02*",
+    "area_mm2": 2.0000000000000004,
+    "negative": false,
+    "violation_count": 0,
+    "minimum_gap_mm": null
+  },
+  {
+    "name": "macro_outline",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%AMV*4,1,4,0,0,2,0,2,2,0,2,0,0,30*%%ADD10V*%\nD10*\nX0Y0D03*\nM02*",
+    "area_mm2": 4.0,
+    "negative": false,
+    "violation_count": 0,
+    "minimum_gap_mm": null
+  },
+  {
+    "name": "macro_polygon",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n\n%AMV*5,1,6,0.2,0.1,2,45*%%ADD10V*%\nD10*\nX0Y0D03*\nM02*",
+    "area_mm2": 2.598076211353317,
+    "negative": false,
+    "violation_count": 0,
+    "minimum_gap_mm": null
+  },
+  {
+    "name": "negative_thermal_0",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n%TF.FilePolarity,Negative*%\n%AMT*7,0,0,2,1.84,0.15,0*%%ADD10T*%\nD10*\nX0Y0D03*\nM02*",
+    "area_mm2": 15.52024791275405,
+    "negative": true,
+    "violation_count": 12,
+    "minimum_gap_mm": 0.07999397614713141,
+    "aggregation_unstable": true,
+    "locations_mm": [
+      [
+        -0.33445674716505996,
+        -0.8997776947285246
+      ],
+      [
+        0.31227436501973327,
+        0.9077146779725077
+      ],
+      [
+        0.3344567471650601,
+        -0.8997776947285246
+      ],
+      [
+        -0.8107917435807758,
+        0.514009167354263
+      ],
+      [
+        -0.8107917435807757,
+        -0.5140091673542633
+      ],
+      [
+        -0.3122743650197335,
+        0.9077146779725076
+      ],
+      [
+        0.8774369562237875,
+        0.38947793703329675
+      ],
+      [
+        -0.5998199398772511,
+        0.7494513028748845
+      ],
+      [
+        -0.5998199398772506,
+        -0.7494513028748849
+      ],
+      [
+        0.653327759800361,
+        0.7032951399870845
+      ],
+      [
+        0.6615992911497832,
+        -0.695611280481478
+      ],
+      [
+        0.8572692684107515,
+        -0.4320625846118501
+      ]
+    ]
+  },
+  {
+    "name": "negative_thermal_30",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n%TF.FilePolarity,Negative*%\n%AMT*7,0,0,2,1.84,0.15,30*%%ADD10T*%\nD10*\nX0Y0D03*\nM02*",
+    "area_mm2": 15.565010844240447,
+    "negative": true,
+    "violation_count": 11,
+    "minimum_gap_mm": 0.0799939761471313,
+    "aggregation_unstable": true,
+    "locations_mm": [
+      [
+        0.008344652884136296,
+        -0.9599578336318844
+      ],
+      [
+        0.9599578336318844,
+        0.008344652884136295
+      ],
+      [
+        -0.9384612268173939,
+        0.20218605625356423
+      ],
+      [
+        -0.7242948720439977,
+        0.629966788002336
+      ],
+      [
+        0.1911222739995828,
+        0.940709036863386
+      ],
+      [
+        0.6206997423241929,
+        0.7323390645470567
+      ],
+      [
+        -0.43509817452458555,
+        -0.8556581058931099
+      ],
+      [
+        0.7323390645470569,
+        -0.6206997423241927
+      ],
+      [
+        0.902483820033908,
+        -0.3270843472748513
+      ],
+      [
+        -0.19546279560398475,
+        0.9398845520156462
+      ],
+      [
+        -0.9517170293635083,
+        -0.1257909837884915
+      ]
+    ]
+  },
+  {
+    "name": "negative_thermal_45",
+    "gerber": "%FSLAX46Y46*%\n%MOMM*%\n%TF.FilePolarity,Negative*%\n%AMT*7,0,0,2,1.84,0.15,45*%%ADD10T*%\nD10*\nX0Y0D03*\nM02*",
+    "area_mm2": 15.565546297082115,
+    "negative": true,
+    "violation_count": 12,
+    "minimum_gap_mm": 0.07999397614713132,
+    "aggregation_unstable": true,
+    "locations_mm": [
+      [
+        -0.1403748594920251,
+        0.9496755100588683
+      ],
+      [
+        -0.9365606273001077,
+        -0.21081476934552296
+      ],
+      [
+        0.20985697218778035,
+        -0.9367757078442815
+      ],
+      [
+        0.8572692684107517,
+        -0.43206258461184993
+      ],
+      [
+        -0.4311857517439363,
+        0.8577106289862532
+      ],
+      [
+        0.41089401441755746,
+        0.8676144215599471
+      ],
+      [
+        0.9592772519526609,
+        -0.035332273368158404
+      ],
+      [
+        -0.8626625252731002,
+        0.4210398830807468
+      ],
+      [
+        -0.42103988308074636,
+        -0.8626625252731003
+      ],
+      [
+        0.8997776947285246,
+        0.33445674716506013
+      ],
+      [
+        -0.09458432541377133,
+        -0.9553232337638393
+      ],
+      [
+        -0.9511949013904757,
+        0.12918775183419726
+      ]
+    ]
+  }
+]
