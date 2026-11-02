@@ -7,6 +7,8 @@ Altium / KiCad のガーバーデータから、銅箔間の狭いクリアラ�
 
 ## 使い方
 
+[Windows版exeをダウンロード](https://github.com/koba164/pcb_clearance/releases/latest/download/PCB-Clearance.exe)
+
 Windows 64bit 用の `PCB-Clearance.exe` を実行します。インストールや Python・CADソフトの準備は不要です。
 
 1. 「ファイルを追加」または「フォルダーを追加」でガーバーを選択します。
