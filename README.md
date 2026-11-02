@@ -83,7 +83,7 @@ cargo clippy --locked --all-targets -- -D warnings
 
 ## 自動リリース
 
-`v0.2.3` のような安定版タグを `public` にpushすると、GitHub Actions がWindows上でテスト・整形チェック・静的解析を実行し、GUI・CLIのexeをビルドしてGitHub Releasesへ公開します。
+`v0.2.4` のような安定版タグを `public` にpushすると、GitHub Actions がWindows上でテスト・整形チェック・静的解析を実行し、GUI・CLIのexeをビルドしてGitHub Releasesへ公開します。
 マニュアルと `SHA256SUMS.txt` も添付し、READMEの「Windows版exeをダウンロード」は新しい最新版へ切り替わります。
 
 1. `Cargo.toml` のバージョンを更新し、`cargo check` で `Cargo.lock` も更新します。
@@ -91,9 +91,9 @@ cargo clippy --locked --all-targets -- -D warnings
 3. バージョンと一致するタグを作り、ブランチとタグをpushします。
 
 ```powershell
-git tag v0.2.3
+git tag v0.2.4
 git push public main
-git push public v0.2.3
+git push public v0.2.4
 ```
 
 通常のブランチpushだけでは公開しません。タグとアプリのバージョンが一致しない場合や検証に失敗した場合は公開を停止します。

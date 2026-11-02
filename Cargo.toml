@@ -1,6 +1,6 @@
 [package]
 name = "pcb-clearance"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 description = "Altium / KiCad ガーバーの絶縁ギャップ検査"
 default-run = "pcb-clearance"
