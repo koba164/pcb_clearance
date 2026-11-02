@@ -83,7 +83,9 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: GUI・CLIのexeを作成
-        run: ./build_exe.ps1
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: ./build_exe.ps1 -Target x86_64-pc-windows-msvc
 
       - name: バージョン・マニュアル・チェックサムを確認
         env:
@@ -160,6 +162,17 @@ jobs:
             exit 1
           }
 
+          printf '%s\n' \
+            'Windows 64bit向けのRust版です。PythonやCADソフトの導入は不要です。' \
+            '' \
+            '- `PCB-Clearance.exe`: GUI版' \
+            '- `pcb-clearance-cli.exe`: コマンドライン版' \
+            '- `PCB-Clearance_Manual.pdf`: 簡易マニュアル' \
+            '- `SHA256SUMS.txt`: 添付ファイルのSHA256' \
+            '' \
+            'テスト・整形チェック・静的解析に合格したexeを添付しています。' \
+            "ソースコミット: $RELEASE_COMMIT" > "$RUNNER_TEMP/release-notes.md"
+
           # 公開済みの版は不変とし、失敗したドラフトだけ再実行を許可する。
           if gh release view "$RELEASE_TAG" --json isDraft > "$RUNNER_TEMP/release-state.json"; then
             [[ "$(jq -r '.isDraft' "$RUNNER_TEMP/release-state.json")" == true ]] || {
@@ -167,25 +180,17 @@ jobs:
               exit 1
             }
           else
-            printf '%s\n' \
-              'Windows 64bit向けのRust版です。PythonやCADソフトの導入は不要です。' \
-              '' \
-              '- `PCB-Clearance.exe`: GUI版' \
-              '- `pcb-clearance-cli.exe`: コマンドライン版' \
-              '- `PCB-Clearance_Manual.pdf`: 簡易マニュアル' \
-              '- `SHA256SUMS.txt`: 添付ファイルのSHA256' \
-              '' \
-              'テスト・整形チェック・静的解析に合格したexeを添付しています。' \
-              "ソースコミット: $RELEASE_COMMIT" > "$RUNNER_TEMP/release-notes.md"
             gh release create "$RELEASE_TAG" --verify-tag --draft \
               --title "PCB Clearance $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           fi
+          gh release edit "$RELEASE_TAG" --target "$RELEASE_COMMIT" --notes-file "$RUNNER_TEMP/release-notes.md"
 
           gh release upload "$RELEASE_TAG" --clobber \
             PCB-Clearance.exe pcb-clearance-cli.exe PCB-Clearance_Manual.pdf SHA256SUMS.txt
 
           # アップロード後もサーバー側のハッシュと照合し、揃ってから公開する。
-          gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/release-assets.json"
+          release_id="$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')"
+          gh api "repos/$GH_REPO/releases/$release_id" > "$RUNNER_TEMP/release-assets.json"
           for file in PCB-Clearance.exe pcb-clearance-cli.exe PCB-Clearance_Manual.pdf SHA256SUMS.txt; do
             expected="sha256:$(sha256sum "$file" | cut -d ' ' -f 1)"
             actual="$(jq -r --arg name "$file" '.assets[] | select(.name == $name) | .digest' "$RUNNER_TEMP/release-assets.json")"
